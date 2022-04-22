@@ -77,10 +77,10 @@ def main(argv):
   # handle 'scanf("%u")', but not 'scanf("%u %u")'.
   # You can either copy and paste the line below or use a Python list.
   # (!)
-  passwords = [claripy.BVS('password0', ???)
-              claripy.BVS('password0', ???)
-              claripy.BVS('password0', ???)
-  ...
+  passwords = [
+    claripy.BVS('password0', 32),
+    claripy.BVS('password1', 32),
+    ]
 
   # Here is the hard part. We need to figure out what the stack looks like, at
   # least well enough to inject our symbols where we want them. In order to do
@@ -124,7 +124,7 @@ def main(argv):
   #
   # Figure out how much space there is and allocate the necessary padding to
   # the stack by decrementing esp before you push the password bitvectors.
-  padding_length_in_bytes = ???  # :integer
+  padding_length_in_bytes = 8  # seizeof(password0 + password1)
   initial_state.regs.esp -= padding_length_in_bytes
 
   # Push the variables to the stack. Make sure to push them in the right order!
@@ -135,29 +135,41 @@ def main(argv):
   # This will push the bitvector on the stack, and increment esp the correct
   # amount. You will need to push multiple bitvectors on the stack.
   # (!)
-  initial_state.stack_push(???)  # :bitvector (claripy.BVS, claripy.BVV, claripy.BV)
-  ...
+  initial_state.stack_push(passwords[0])  # :bitvector (claripy.BVS, claripy.BVV, claripy.BV)
+  initial_state.stack_push(passwords[1])  # :bitvector (claripy.BVS, claripy.BVV, claripy.BV)
 
   simulation = project.factory.simgr(initial_state)
 
   def is_successful(state):
+    # Dump whatever has been printed out by the binary so far into a string.
     stdout_output = state.posix.dumps(sys.stdout.fileno())
-    return ???
+
+    # Return whether 'Good Job.' has been printed yet.
+    # (!)
+    if b"Good Job" in stdout_output:
+        found = True
+    else:
+        found = False
+    return found  # :boolean
 
   def should_abort(state):
     stdout_output = state.posix.dumps(sys.stdout.fileno())
-    return ???
+    if b"Try again" in stdout_output:
+        abort = True
+    else:
+        abort = False
+    return abort # :boolean
 
   simulation.explore(find=is_successful, avoid=should_abort)
 
   if simulation.found:
     solution_state = simulation.found[0]
 
-    solution0 = solution_state.solver.eval(password0)
-    ...
+    solutions = [
+        solution_state.solver.eval(passwords[0]), 
+        solution_state.solver.eval(passwords[1])]
 
-    solution = ???
-    print(solution)
+    print(f"{solutions[0]} {solutions[1]}")
   else:
     raise Exception('Could not find the solution')
 
